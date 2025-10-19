@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recording Teleprompter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827; /* Tailwind gray-900 */
+        }
+        #prompter-content::-webkit-scrollbar {
+            width: 0px;
+            background: transparent; /* make scrollbar transparent */
+        }
+        #prompter-window {
+            overscroll-behavior: contain;
+        }
+        #camera-feed {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: -1; /* Place it behind everything */
+            transform: scaleX(-1); /* Mirror the camera feed */
+            transition: filter 0.3s ease;
+        }
+        .control-panel-container {
+            position: relative;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="text-gray-200 flex items-center justify-center min-h-screen">
+
+    <!-- Camera Feed -->
+    <video id="camera-feed" autoplay playsinline muted></video>
+
+    <!-- Main Controls Panel -->
+    <div id="controls-panel" class="w-full max-w-4xl p-8 bg-gray-800/80 backdrop-blur-lg rounded-2xl shadow-2xl space-y-6 transition-opacity duration-300 control-panel-container">
+        <div class="text-center">
+            <h1 class="text-3xl font-bold text-white">Recording Teleprompter</h1>
+            <p class="text-gray-400 mt-2">Select your camera, paste your script, and press Record.</p>
+        </div>
+
+        <!-- Device Selection -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                 <label for="video-devices" class="block text-sm font-medium text-gray-300 mb-2">Camera</label>
+                 <select id="video-devices" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2.5 text-gray-200 focus:ring-2 focus:ring-cyan-500"></select>
+            </div>
+            <div>
+                 <label for="audio-devices" class="block text-sm font-medium text-gray-300 mb-2">Microphone</label>
+                 <select id="audio-devices" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2.5 text-gray-200 focus:ring-2 focus:ring-cyan-500"></select>
+            </div>
+        </div>
+
+        <!-- Script Input -->
+        <div>
+            <label for="script-input" class="block text-sm font-medium text-gray-300 mb-2">Your Script</label>
+            <textarea id="script-input" rows="10" class="w-full p-4 bg-gray-900 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:ring-2 focus:ring-cyan-500 transition" placeholder="Paste your script here..."></textarea>
+        </div>
+
+        <!-- Settings -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label for="speed-slider" class="block text-sm font-medium text-gray-300 mb-2">Scroll Speed: <span id="speed-value" class="font-bold">50</span></label>
+                <input id="speed-slider" type="range" min="1" max="100" value="50" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div>
+                <label for="font-size-slider" class="block text-sm font-medium text-gray-300 mb-2">Font Size: <span id="font-size-value" class="font-bold">48</span>px</label>
+                <input id="font-size-slider" type="range" min="12" max="120" value="48" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+        </div>
+
+        <!-- Background Filters -->
+        <div class="border-t border-gray-700 pt-6">
+            <h3 class="text-lg font-semibold text-white mb-4">Background Effects</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="blur-slider" class="block text-sm font-medium text-gray-300 mb-2">Blur: <span id="blur-value" class="font-bold">0</span>px</label>
+                    <input id="blur-slider" type="range" min="0" max="20" value="0" step="1" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+                <div>
+                    <label for="brightness-slider" class="block text-sm font-medium text-gray-300 mb-2">Brightness: <span id="brightness-value" class="font-bold">100</span>%</label>
+                    <input id="brightness-slider" type="range" min="50" max="150" value="100" step="5" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+                <div>
+                    <label for="contrast-slider" class="block text-sm font-medium text-gray-300 mb-2">Contrast: <span id="contrast-value" class="font-bold">100</span>%</label>
+                    <input id="contrast-slider" type="range" min="50" max="150" value="100" step="5" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+                <div>
+                    <label for="saturation-slider" class="block text-sm font-medium text-gray-300 mb-2">Saturation: <span id="saturation-value" class="font-bold">100</span>%</label>
+                    <input id="saturation-slider" type="range" min="0" max="200" value="100" step="10" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </div>
+        </div>
+
+        <!-- Start Button -->
+        <button id="start-button" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 text-lg shadow-lg flex items-center justify-center gap-2">
+            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a.75.75 0 011.5 0v6a.75.75 0 01-1.5 0V7z" clip-rule="evenodd" /></svg>
+            Start Prompter & Record
+        </button>
+
+        <!-- Download Link Container -->
+        <div id="download-container" class="hidden text-center">
+            <a id="download-link" class="w-full inline-block bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 text-lg shadow-lg">Download Your Video</a>
+        </div>
+    </div>
+
+    <!-- Teleprompter Window (Initially Hidden) -->
+    <div id="prompter-window" class="hidden fixed top-0 left-0 right-0 h-1/4 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center overflow-hidden">
+        <div class="absolute top-1/2 left-0 right-0 border-t-2 border-red-500/70 z-10"></div>
+        <div id="prompter-content" class="text-white text-center w-full max-w-6xl p-8 overflow-y-scroll h-full">
+            <div id="text-container" class="transition-transform duration-100 ease-linear"></div>
+        </div>
+        <button id="stop-button" class="absolute top-4 right-4 text-white text-lg font-bold bg-red-600/80 hover:bg-red-700 rounded-lg px-4 py-2 flex items-center justify-center transition">Stop</button>
+    </div>
+
+    <script>
+        // DOM Elements
+        const controlsPanel = document.getElementById('controls-panel');
+        const prompterWindow = document.getElementById('prompter-window');
+        const startButton = document.getElementById('start-button');
+        const stopButton = document.getElementById('stop-button');
+        const scriptInput = document.getElementById('script-input');
+        const speedSlider = document.getElementById('speed-slider');
+        const fontSizeSlider = document.getElementById('font-size-slider');
+        const prompterContent = document.getElementById('prompter-content');
+        const textContainer = document.getElementById('text-container');
+        const speedValueDisplay = document.getElementById('speed-value');
+        const fontSizeValueDisplay = document.getElementById('font-size-value');
+        const cameraFeed = document.getElementById('camera-feed');
+        const videoDevicesSelect = document.getElementById('video-devices');
+        const audioDevicesSelect = document.getElementById('audio-devices');
+        const downloadContainer = document.getElementById('download-container');
+        const downloadLink = document.getElementById('download-link');
+        const blurSlider = document.getElementById('blur-slider');
+        const brightnessSlider = document.getElementById('brightness-slider');
+        const contrastSlider = document.getElementById('contrast-slider');
+        const saturationSlider = document.getElementById('saturation-slider');
+        const blurValueDisplay = document.getElementById('blur-value');
+        const brightnessValueDisplay = document.getElementById('brightness-value');
+        const contrastValueDisplay = document.getElementById('contrast-value');
+        const saturationValueDisplay = document.getElementById('saturation-value');
+
+        // State variables
+        let scrollInterval = null;
+        let mediaRecorder;
+        let recordedBlobs = [];
+        let stream;
+
+        // --- Event Listeners ---
+        window.addEventListener('load', initialize);
+        speedSlider.addEventListener('input', () => speedValueDisplay.textContent = speedSlider.value);
+        fontSizeSlider.addEventListener('input', () => fontSizeValueDisplay.textContent = fontSizeSlider.value);
+        blurSlider.addEventListener('input', updateFilters);
+        brightnessSlider.addEventListener('input', updateFilters);
+        contrastSlider.addEventListener('input', updateFilters);
+        saturationSlider.addEventListener('input', updateFilters);
+        startButton.addEventListener('click', startRecordingAndPrompter);
+        stopButton.addEventListener('click', stopRecordingAndPrompter);
+        videoDevicesSelect.addEventListener('change', startCamera);
+        audioDevicesSelect.addEventListener('change', startCamera);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !prompterWindow.classList.contains('hidden')) {
+                stopRecordingAndPrompter();
+            }
+        });
+
+        // --- Core Functions ---
+
+        async function initialize() {
+            if (!navigator.mediaDevices?.enumerateDevices) {
+                alert("This browser does not support the required media device APIs.");
+                return;
+            }
+            await getDevices();
+            await startCamera();
+        }
+
+        function updateFilters() {
+            const blur = blurSlider.value;
+            const brightness = brightnessSlider.value;
+            const contrast = contrastSlider.value;
+            const saturation = saturationSlider.value;
+
+            blurValueDisplay.textContent = blur;
+            brightnessValueDisplay.textContent = brightness;
+            contrastValueDisplay.textContent = contrast;
+            saturationValueDisplay.textContent = saturation;
+
+            cameraFeed.style.filter = `blur(${blur}px) brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
+        }
+        
+        async function getDevices() {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            videoDevicesSelect.innerHTML = '';
+            audioDevicesSelect.innerHTML = '';
+            devices.forEach(device => {
+                const option = document.createElement('option');
+                option.value = device.deviceId;
+                option.text = device.label || `Device ${device.kind}`;
+                if (device.kind === 'videoinput') {
+                    videoDevicesSelect.appendChild(option);
+                } else if (device.kind === 'audioinput') {
+                    audioDevicesSelect.appendChild(option);
+                }
+            });
+        }
+        
+        async function startCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            const videoDeviceId = videoDevicesSelect.value;
+            const audioDeviceId = audioDevicesSelect.value;
+            const constraints = {
+                video: { deviceId: videoDeviceId ? { exact: videoDeviceId } : undefined },
+                audio: { deviceId: audioDeviceId ? { exact: audioDeviceId } : undefined }
+            };
+            try {
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                cameraFeed.srcObject = stream;
+            } catch (e) {
+                console.error('Error starting camera:', e);
+                alert('Could not access your camera and microphone. Please check permissions.');
+            }
+        }
+
+        function startRecordingAndPrompter() {
+            const scriptText = scriptInput.value;
+            if (!scriptText.trim()) {
+                scriptInput.classList.add('animate-bounce');
+                setTimeout(() => scriptInput.classList.remove('animate-bounce'), 500);
+                scriptInput.placeholder = "Please enter some text before starting!";
+                return;
+            }
+
+            if (!stream) {
+                alert("Camera is not ready. Please select a camera and microphone.");
+                return;
+            }
+
+            // --- Setup Prompter ---
+            const formattedScript = scriptText.replace(/\n/g, '<br><br>');
+            textContainer.innerHTML = formattedScript;
+            textContainer.style.fontSize = `${fontSizeSlider.value}px`;
+            
+            prompterWindow.classList.remove('hidden');
+            controlsPanel.style.opacity = '0';
+            controlsPanel.style.pointerEvents = 'none';
+            downloadContainer.classList.add('hidden'); // Hide previous download links
+            
+            // --- Setup Recorder ---
+            recordedBlobs = [];
+            const options = { mimeType: 'video/webm; codecs=vp9' };
+            try {
+                mediaRecorder = new MediaRecorder(stream, options);
+            } catch (e) {
+                console.error('Exception while creating MediaRecorder:', e);
+                return;
+            }
+
+            mediaRecorder.onstop = (event) => {
+                const superBuffer = new Blob(recordedBlobs, { type: 'video/webm' });
+                const url = window.URL.createObjectURL(superBuffer);
+                downloadLink.href = url;
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
+                downloadLink.download = `teleprompter-recording-${timestamp}.webm`;
+                downloadContainer.classList.remove('hidden');
+            };
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data && event.data.size > 0) {
+                    recordedBlobs.push(event.data);
+                }
+            };
+            
+            mediaRecorder.start(10); // Collect data every 10ms
+            startScrolling();
+        }
+        
+        function stopRecordingAndPrompter() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            clearInterval(scrollInterval);
+            scrollInterval = null;
+            
+            prompterWindow.classList.add('hidden');
+            controlsPanel.style.opacity = '1';
+            controlsPanel.style.pointerEvents = 'auto';
+            
+            // Note: We don't stop the camera stream here, so the user can do another take without re-selecting devices.
+        }
+
+        function startScrolling() {
+            if (scrollInterval) clearInterval(scrollInterval);
+            prompterContent.scrollTop = 0;
+            const speed = parseInt(speedSlider.value);
+            const scrollAmount = speed / 50; 
+            scrollInterval = setInterval(() => {
+                prompterContent.scrollTop += scrollAmount;
+                if (prompterContent.scrollTop >= prompterContent.scrollHeight - prompterContent.clientHeight) {
+                    // Automatically stop when the script ends
+                    stopRecordingAndPrompter();
+                }
+            }, 20);
+        }
+    </script>
+</body>
+</html>
