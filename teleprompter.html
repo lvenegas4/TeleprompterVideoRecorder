@@ -35,12 +35,25 @@
             position: relative;
             z-index: 10;
         }
+        #vignette-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+            transition: opacity 0.3s ease;
+        }
     </style>
 </head>
 <body class="text-gray-200 flex items-center justify-center min-h-screen">
 
     <!-- Camera Feed -->
     <video id="camera-feed" autoplay playsinline muted></video>
+
+    <!-- Vignette Overlay -->
+    <div id="vignette-overlay"></div>
 
     <!-- Main Controls Panel -->
     <div id="controls-panel" class="w-full max-w-4xl p-8 bg-gray-800/80 backdrop-blur-lg rounded-2xl shadow-2xl space-y-6 transition-opacity duration-300 control-panel-container">
@@ -81,11 +94,11 @@
 
         <!-- Background Filters -->
         <div class="border-t border-gray-700 pt-6">
-            <h3 class="text-lg font-semibold text-white mb-4">Background Effects</h3>
+            <h3 class="text-lg font-semibold text-white mb-4">Video Effects</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <label for="blur-slider" class="block text-sm font-medium text-gray-300 mb-2">Blur: <span id="blur-value" class="font-bold">0</span>px</label>
-                    <input id="blur-slider" type="range" min="0" max="20" value="0" step="1" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                    <label for="vignette-slider" class="block text-sm font-medium text-gray-300 mb-2">Edge Vignette: <span id="vignette-value" class="font-bold">0</span>%</label>
+                    <input id="vignette-slider" type="range" min="0" max="100" value="0" step="5" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
                 </div>
                 <div>
                     <label for="brightness-slider" class="block text-sm font-medium text-gray-300 mb-2">Brightness: <span id="brightness-value" class="font-bold">100</span>%</label>
@@ -130,8 +143,8 @@
             <h3 class="text-white text-lg font-semibold mb-4 text-center">Adjust Video Settings</h3>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
                 <div>
-                    <label for="live-blur-slider" class="block text-sm font-medium text-gray-300 mb-2">Blur: <span id="live-blur-value" class="font-bold">0</span>px</label>
-                    <input id="live-blur-slider" type="range" min="0" max="20" value="0" step="1" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                    <label for="live-vignette-slider" class="block text-sm font-medium text-gray-300 mb-2">Edge Vignette: <span id="live-vignette-value" class="font-bold">0</span>%</label>
+                    <input id="live-vignette-slider" type="range" min="0" max="100" value="0" step="5" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
                 </div>
                 <div>
                     <label for="live-brightness-slider" class="block text-sm font-medium text-gray-300 mb-2">Brightness: <span id="live-brightness-value" class="font-bold">100</span>%</label>
@@ -192,22 +205,23 @@
         const audioDevicesSelect = document.getElementById('audio-devices');
         const downloadContainer = document.getElementById('download-container');
         const downloadLink = document.getElementById('download-link');
-        const blurSlider = document.getElementById('blur-slider');
+        const vignetteSlider = document.getElementById('vignette-slider');
         const brightnessSlider = document.getElementById('brightness-slider');
         const contrastSlider = document.getElementById('contrast-slider');
         const saturationSlider = document.getElementById('saturation-slider');
-        const blurValueDisplay = document.getElementById('blur-value');
+        const vignetteValueDisplay = document.getElementById('vignette-value');
         const brightnessValueDisplay = document.getElementById('brightness-value');
         const contrastValueDisplay = document.getElementById('contrast-value');
         const saturationValueDisplay = document.getElementById('saturation-value');
-        const liveBlurSlider = document.getElementById('live-blur-slider');
+        const liveVignetteSlider = document.getElementById('live-vignette-slider');
         const liveBrightnessSlider = document.getElementById('live-brightness-slider');
         const liveContrastSlider = document.getElementById('live-contrast-slider');
         const liveSaturationSlider = document.getElementById('live-saturation-slider');
-        const liveBlurValueDisplay = document.getElementById('live-blur-value');
+        const liveVignetteValueDisplay = document.getElementById('live-vignette-value');
         const liveBrightnessValueDisplay = document.getElementById('live-brightness-value');
         const liveContrastValueDisplay = document.getElementById('live-contrast-value');
         const liveSaturationValueDisplay = document.getElementById('live-saturation-value');
+        const vignetteOverlay = document.getElementById('vignette-overlay');
 
         // State variables
         let scrollInterval = null;
@@ -219,11 +233,11 @@
         window.addEventListener('load', initialize);
         speedSlider.addEventListener('input', () => speedValueDisplay.textContent = speedSlider.value);
         fontSizeSlider.addEventListener('input', () => fontSizeValueDisplay.textContent = fontSizeSlider.value);
-        blurSlider.addEventListener('input', updateFilters);
+        vignetteSlider.addEventListener('input', updateFilters);
         brightnessSlider.addEventListener('input', updateFilters);
         contrastSlider.addEventListener('input', updateFilters);
         saturationSlider.addEventListener('input', updateFilters);
-        liveBlurSlider.addEventListener('input', updateLiveFilters);
+        liveVignetteSlider.addEventListener('input', updateLiveFilters);
         liveBrightnessSlider.addEventListener('input', updateLiveFilters);
         liveContrastSlider.addEventListener('input', updateLiveFilters);
         liveSaturationSlider.addEventListener('input', updateLiveFilters);
@@ -253,31 +267,42 @@
         }
 
         function updateFilters() {
-            const blur = blurSlider.value;
+            const vignette = vignetteSlider.value;
             const brightness = brightnessSlider.value;
             const contrast = contrastSlider.value;
             const saturation = saturationSlider.value;
 
-            blurValueDisplay.textContent = blur;
+            vignetteValueDisplay.textContent = vignette;
             brightnessValueDisplay.textContent = brightness;
             contrastValueDisplay.textContent = contrast;
             saturationValueDisplay.textContent = saturation;
 
-            cameraFeed.style.filter = `blur(${blur}px) brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
+            cameraFeed.style.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
+            updateVignette(vignette);
         }
 
         function updateLiveFilters() {
-            const blur = liveBlurSlider.value;
+            const vignette = liveVignetteSlider.value;
             const brightness = liveBrightnessSlider.value;
             const contrast = liveContrastSlider.value;
             const saturation = liveSaturationSlider.value;
 
-            liveBlurValueDisplay.textContent = blur;
+            liveVignetteValueDisplay.textContent = vignette;
             liveBrightnessValueDisplay.textContent = brightness;
             liveContrastValueDisplay.textContent = contrast;
             liveSaturationValueDisplay.textContent = saturation;
 
-            cameraFeed.style.filter = `blur(${blur}px) brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
+            cameraFeed.style.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
+            updateVignette(vignette);
+        }
+
+        function updateVignette(intensity) {
+            if (intensity == 0) {
+                vignetteOverlay.style.background = 'none';
+            } else {
+                const opacityValue = intensity / 100;
+                vignetteOverlay.style.background = `radial-gradient(ellipse at center, transparent 0%, transparent 20%, rgba(0,0,0,${opacityValue * 0.5}) 50%, rgba(0,0,0,${opacityValue}) 100%)`;
+            }
         }
         
         async function getDevices() {
@@ -335,11 +360,11 @@
             previewTextContainer.style.fontSize = `${fontSizeSlider.value}px`;
 
             // Sync filter values from main controls to live controls
-            liveBlurSlider.value = blurSlider.value;
+            liveVignetteSlider.value = vignetteSlider.value;
             liveBrightnessSlider.value = brightnessSlider.value;
             liveContrastSlider.value = contrastSlider.value;
             liveSaturationSlider.value = saturationSlider.value;
-            liveBlurValueDisplay.textContent = blurSlider.value;
+            liveVignetteValueDisplay.textContent = vignetteSlider.value;
             liveBrightnessValueDisplay.textContent = brightnessSlider.value;
             liveContrastValueDisplay.textContent = contrastSlider.value;
             liveSaturationValueDisplay.textContent = saturationSlider.value;
