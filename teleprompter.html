@@ -27,7 +27,7 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            z-index: -1; /* Place it behind everything */
+            z-index: 0; /* Place it behind UI elements but visible */
             transform: scaleX(-1); /* Mirror the camera feed */
             transition: filter 0.3s ease;
         }
@@ -105,7 +105,7 @@
         <!-- Start Button -->
         <button id="start-button" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 text-lg shadow-lg flex items-center justify-center gap-2">
             <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a.75.75 0 011.5 0v6a.75.75 0 01-1.5 0V7z" clip-rule="evenodd" /></svg>
-            Start Prompter & Record
+            Setup Recording
         </button>
 
         <!-- Download Link Container -->
@@ -114,26 +114,77 @@
         </div>
     </div>
 
-    <!-- Teleprompter Window (Initially Hidden) -->
-    <div id="prompter-window" class="hidden fixed top-0 left-0 right-0 h-1/4 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center overflow-hidden">
-        <div class="absolute top-1/2 left-0 right-0 border-t-2 border-red-500/70 z-10"></div>
-        <div id="prompter-content" class="text-white text-center w-full max-w-6xl p-8 overflow-y-scroll h-full">
-            <div id="text-container" class="transition-transform duration-100 ease-linear"></div>
+
+    <!-- Preview/Setup Screen (Initially Hidden) -->
+    <div id="preview-screen" class="hidden fixed inset-0 z-1">
+        <!-- Teleprompter Preview at top -->
+        <div id="preview-prompter" class="fixed top-0 left-0 right-0 h-1/4 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center overflow-hidden">
+            <div class="absolute top-1/2 left-0 right-0 border-t-2 border-red-500/70 z-10"></div>
+            <div id="preview-prompter-content" class="text-white text-center w-full max-w-6xl p-8 overflow-y-scroll h-full">
+                <div id="preview-text-container" class="transition-transform duration-100 ease-linear"></div>
+            </div>
         </div>
-        <button id="stop-button" class="absolute top-4 right-4 text-white text-lg font-bold bg-red-600/80 hover:bg-red-700 rounded-lg px-4 py-2 flex items-center justify-center transition">Stop</button>
+
+        <!-- Video Filter Controls at bottom -->
+        <div class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-900/95 backdrop-blur-lg rounded-xl shadow-2xl p-6 z-40 max-w-5xl w-full mx-4">
+            <h3 class="text-white text-lg font-semibold mb-4 text-center">Adjust Video Settings</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+                <div>
+                    <label for="live-blur-slider" class="block text-sm font-medium text-gray-300 mb-2">Blur: <span id="live-blur-value" class="font-bold">0</span>px</label>
+                    <input id="live-blur-slider" type="range" min="0" max="20" value="0" step="1" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+                <div>
+                    <label for="live-brightness-slider" class="block text-sm font-medium text-gray-300 mb-2">Brightness: <span id="live-brightness-value" class="font-bold">100</span>%</label>
+                    <input id="live-brightness-slider" type="range" min="50" max="150" value="100" step="5" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+                <div>
+                    <label for="live-contrast-slider" class="block text-sm font-medium text-gray-300 mb-2">Contrast: <span id="live-contrast-value" class="font-bold">100</span>%</label>
+                    <input id="live-contrast-slider" type="range" min="50" max="150" value="100" step="5" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+                <div>
+                    <label for="live-saturation-slider" class="block text-sm font-medium text-gray-300 mb-2">Saturation: <span id="live-saturation-value" class="font-bold">100</span>%</label>
+                    <input id="live-saturation-slider" type="range" min="0" max="200" value="100" step="10" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </div>
+            <div class="flex gap-4">
+                <button id="go-button" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 text-lg shadow-lg">
+                    Start Recording Now
+                </button>
+                <button id="cancel-button" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 text-lg shadow-lg">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recording Screen (Initially Hidden) -->
+    <div id="recording-screen" class="hidden fixed inset-0 z-1">
+        <!-- Teleprompter during recording -->
+        <div id="recording-prompter" class="fixed top-0 left-0 right-0 h-1/4 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center overflow-hidden">
+            <div class="absolute top-1/2 left-0 right-0 border-t-2 border-red-500/70 z-10"></div>
+            <div id="recording-prompter-content" class="text-white text-center w-full max-w-6xl p-8 overflow-y-scroll h-full">
+                <div id="recording-text-container" class="transition-transform duration-100 ease-linear"></div>
+            </div>
+            <button id="stop-button" class="absolute top-4 right-4 text-white text-lg font-bold bg-red-600/80 hover:bg-red-700 rounded-lg px-4 py-2 flex items-center justify-center transition">Stop</button>
+        </div>
     </div>
 
     <script>
         // DOM Elements
         const controlsPanel = document.getElementById('controls-panel');
-        const prompterWindow = document.getElementById('prompter-window');
+        const previewScreen = document.getElementById('preview-screen');
+        const recordingScreen = document.getElementById('recording-screen');
         const startButton = document.getElementById('start-button');
+        const goButton = document.getElementById('go-button');
+        const cancelButton = document.getElementById('cancel-button');
         const stopButton = document.getElementById('stop-button');
         const scriptInput = document.getElementById('script-input');
         const speedSlider = document.getElementById('speed-slider');
         const fontSizeSlider = document.getElementById('font-size-slider');
-        const prompterContent = document.getElementById('prompter-content');
-        const textContainer = document.getElementById('text-container');
+        const previewPrompterContent = document.getElementById('preview-prompter-content');
+        const previewTextContainer = document.getElementById('preview-text-container');
+        const recordingPrompterContent = document.getElementById('recording-prompter-content');
+        const recordingTextContainer = document.getElementById('recording-text-container');
         const speedValueDisplay = document.getElementById('speed-value');
         const fontSizeValueDisplay = document.getElementById('font-size-value');
         const cameraFeed = document.getElementById('camera-feed');
@@ -149,6 +200,14 @@
         const brightnessValueDisplay = document.getElementById('brightness-value');
         const contrastValueDisplay = document.getElementById('contrast-value');
         const saturationValueDisplay = document.getElementById('saturation-value');
+        const liveBlurSlider = document.getElementById('live-blur-slider');
+        const liveBrightnessSlider = document.getElementById('live-brightness-slider');
+        const liveContrastSlider = document.getElementById('live-contrast-slider');
+        const liveSaturationSlider = document.getElementById('live-saturation-slider');
+        const liveBlurValueDisplay = document.getElementById('live-blur-value');
+        const liveBrightnessValueDisplay = document.getElementById('live-brightness-value');
+        const liveContrastValueDisplay = document.getElementById('live-contrast-value');
+        const liveSaturationValueDisplay = document.getElementById('live-saturation-value');
 
         // State variables
         let scrollInterval = null;
@@ -164,13 +223,21 @@
         brightnessSlider.addEventListener('input', updateFilters);
         contrastSlider.addEventListener('input', updateFilters);
         saturationSlider.addEventListener('input', updateFilters);
-        startButton.addEventListener('click', startRecordingAndPrompter);
+        liveBlurSlider.addEventListener('input', updateLiveFilters);
+        liveBrightnessSlider.addEventListener('input', updateLiveFilters);
+        liveContrastSlider.addEventListener('input', updateLiveFilters);
+        liveSaturationSlider.addEventListener('input', updateLiveFilters);
+        startButton.addEventListener('click', showPreviewScreen);
+        goButton.addEventListener('click', startRecordingAndPrompter);
+        cancelButton.addEventListener('click', cancelPreview);
         stopButton.addEventListener('click', stopRecordingAndPrompter);
         videoDevicesSelect.addEventListener('change', startCamera);
         audioDevicesSelect.addEventListener('change', startCamera);
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !prompterWindow.classList.contains('hidden')) {
+            if (e.key === 'Escape' && !recordingScreen.classList.contains('hidden')) {
                 stopRecordingAndPrompter();
+            } else if (e.key === 'Escape' && !previewScreen.classList.contains('hidden')) {
+                cancelPreview();
             }
         });
 
@@ -195,6 +262,20 @@
             brightnessValueDisplay.textContent = brightness;
             contrastValueDisplay.textContent = contrast;
             saturationValueDisplay.textContent = saturation;
+
+            cameraFeed.style.filter = `blur(${blur}px) brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
+        }
+
+        function updateLiveFilters() {
+            const blur = liveBlurSlider.value;
+            const brightness = liveBrightnessSlider.value;
+            const contrast = liveContrastSlider.value;
+            const saturation = liveSaturationSlider.value;
+
+            liveBlurValueDisplay.textContent = blur;
+            liveBrightnessValueDisplay.textContent = brightness;
+            liveContrastValueDisplay.textContent = contrast;
+            liveSaturationValueDisplay.textContent = saturation;
 
             cameraFeed.style.filter = `blur(${blur}px) brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
         }
@@ -234,7 +315,7 @@
             }
         }
 
-        function startRecordingAndPrompter() {
+        function showPreviewScreen() {
             const scriptText = scriptInput.value;
             if (!scriptText.trim()) {
                 scriptInput.classList.add('animate-bounce');
@@ -248,16 +329,47 @@
                 return;
             }
 
-            // --- Setup Prompter ---
+            // Setup preview prompter text
             const formattedScript = scriptText.replace(/\n/g, '<br><br>');
-            textContainer.innerHTML = formattedScript;
-            textContainer.style.fontSize = `${fontSizeSlider.value}px`;
-            
-            prompterWindow.classList.remove('hidden');
+            previewTextContainer.innerHTML = formattedScript;
+            previewTextContainer.style.fontSize = `${fontSizeSlider.value}px`;
+
+            // Sync filter values from main controls to live controls
+            liveBlurSlider.value = blurSlider.value;
+            liveBrightnessSlider.value = brightnessSlider.value;
+            liveContrastSlider.value = contrastSlider.value;
+            liveSaturationSlider.value = saturationSlider.value;
+            liveBlurValueDisplay.textContent = blurSlider.value;
+            liveBrightnessValueDisplay.textContent = brightnessSlider.value;
+            liveContrastValueDisplay.textContent = contrastSlider.value;
+            liveSaturationValueDisplay.textContent = saturationSlider.value;
+
+            // Show preview screen and hide controls
+            previewScreen.classList.remove('hidden');
             controlsPanel.style.opacity = '0';
             controlsPanel.style.pointerEvents = 'none';
-            downloadContainer.classList.add('hidden'); // Hide previous download links
-            
+        }
+
+        function cancelPreview() {
+            previewScreen.classList.add('hidden');
+            controlsPanel.style.opacity = '1';
+            controlsPanel.style.pointerEvents = 'auto';
+        }
+
+        function startRecordingAndPrompter() {
+            // Hide preview screen
+            previewScreen.classList.add('hidden');
+
+            // Copy script to recording prompter
+            const scriptText = scriptInput.value;
+            const formattedScript = scriptText.replace(/\n/g, '<br><br>');
+            recordingTextContainer.innerHTML = formattedScript;
+            recordingTextContainer.style.fontSize = `${fontSizeSlider.value}px`;
+
+            // Show recording screen
+            recordingScreen.classList.remove('hidden');
+            downloadContainer.classList.add('hidden');
+
             // --- Setup Recorder ---
             recordedBlobs = [];
             const options = { mimeType: 'video/webm; codecs=vp9' };
@@ -282,7 +394,7 @@
                     recordedBlobs.push(event.data);
                 }
             };
-            
+
             mediaRecorder.start(10); // Collect data every 10ms
             startScrolling();
         }
@@ -293,22 +405,22 @@
             }
             clearInterval(scrollInterval);
             scrollInterval = null;
-            
-            prompterWindow.classList.add('hidden');
+
+            recordingScreen.classList.add('hidden');
             controlsPanel.style.opacity = '1';
             controlsPanel.style.pointerEvents = 'auto';
-            
+
             // Note: We don't stop the camera stream here, so the user can do another take without re-selecting devices.
         }
 
         function startScrolling() {
             if (scrollInterval) clearInterval(scrollInterval);
-            prompterContent.scrollTop = 0;
+            recordingPrompterContent.scrollTop = 0;
             const speed = parseInt(speedSlider.value);
-            const scrollAmount = speed / 50; 
+            const scrollAmount = speed / 50;
             scrollInterval = setInterval(() => {
-                prompterContent.scrollTop += scrollAmount;
-                if (prompterContent.scrollTop >= prompterContent.scrollHeight - prompterContent.clientHeight) {
+                recordingPrompterContent.scrollTop += scrollAmount;
+                if (recordingPrompterContent.scrollTop >= recordingPrompterContent.scrollHeight - recordingPrompterContent.clientHeight) {
                     // Automatically stop when the script ends
                     stopRecordingAndPrompter();
                 }
